@@ -1,0 +1,16 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load data from Excel
+df = pd.read_excel("Insert Your xlsx. File here", usecols=[0, 1], header=0)
+# Columns are assumed to be 'Contigs' and 'No. of Core Genes'
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.plot(df['Contigs'], df['No. of Core Genes'], marker='o', linestyle='-', color='blue')
+plt.title('Core Genome Development Plot')
+plt.xlabel('Number of Contigs')
+plt.ylabel('Number of Core Genes')
+plt.grid(True)
+plt.show()
+
