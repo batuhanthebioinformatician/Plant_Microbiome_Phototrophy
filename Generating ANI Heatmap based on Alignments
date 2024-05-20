@@ -1,0 +1,17 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Read the data from Excel file
+excel_file = "Insert Your xlsx. File here"
+df = pd.read_excel(excel_file, index_col=0)
+
+# Create heatmap using seaborn with custom color scale
+plt.figure(figsize=(10, 8))
+
+# Adjust font size for annotations
+sns.heatmap(df, cmap='coolwarm', annot=True, fmt=".2f", linewidths=.5, vmin=0, vmax=100, annot_kws={"size": 7})
+plt.title('')
+plt.xlabel('')
+plt.ylabel('')
+plt.show()
