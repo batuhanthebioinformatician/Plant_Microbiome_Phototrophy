@@ -73,7 +73,7 @@ This script plots the development of the core genome over the number of contigs.
 
 ### Photoreceptor Threshold
 
-This script identifies sequences with more than 35% similarity to a reference sequence.
+This script identifies sequences with more than selected % similarity to a reference sequence.
 
 **Requirements:**
 - biopython
