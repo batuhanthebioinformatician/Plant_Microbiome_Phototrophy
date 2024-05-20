@@ -1,0 +1,33 @@
+from Bio import SeqIO
+from Bio import pairwise2
+from Bio.Seq import Seq
+
+# Define your reference sequence
+reference_sequence = ""
+
+# Load your sequences from the FASTA file
+fasta_file = (""Insert Your FASTA File here"")
+sequences = list(SeqIO.parse(fasta_file, "fasta"))
+
+# Create a list to store sequences with more than 35% similarity to the reference
+similar_sequences = []
+
+# Perform sequence alignment and calculate similarity
+for sequence in sequences:
+    seq = str(sequence.seq)
+    alignment = pairwise2.align.globalxx(reference_sequence, seq, one_alignment_only=True)
+    aligned_reference, aligned_sequence, score = alignment[0][:3]
+
+    # Calculate similarity as a percentage
+    similarity = (score / len(reference_sequence)) * 100
+
+    # Check if the similarity is greater than 35%
+    if similarity > 35:
+        similar_sequences.append((sequence.id, similarity))
+
+# Print similar sequences and their similarity scores
+for seq_id, similarity in similar_sequences:
+    print(f"Sequence ID: {seq_id}, Similarity: {similarity:.2f}%")
+
+# You can also save the similar sequences to a new FASTA file if needed
+# SeqIO.write([sequence for sequence in sequences if sequence.id in [seq_id for seq_id, _ in similar_sequences]], "similar_sequences.fasta", "fasta")
