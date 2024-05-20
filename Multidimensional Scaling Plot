@@ -1,0 +1,69 @@
+import pandas as pd
+import numpy as np
+from sklearn.manifold import MDS
+import matplotlib.pyplot as plt
+
+# Load the data
+file_path = ""Insert Your xlsx. File here""  
+df = pd.read_excel(file_path, index_col=0)
+
+# Corrected color mapping for strains
+group_colors = {
+    
+}
+
+# Ensure the matrix is symmetric by averaging the values above and below the diagonal
+symmetric_matrix = (df.values + df.values.T) / 2
+np.fill_diagonal(symmetric_matrix, df.values.diagonal())
+
+# Create a symmetric DataFrame
+df_symmetric = pd.DataFrame(symmetric_matrix, index=df.index, columns=df.columns)
+
+# Perform MDS using the symmetric matrix
+mds = MDS(n_components=2, dissimilarity='precomputed', random_state=1)
+mds_results = mds.fit_transform(df_symmetric)
+
+# Map strain names to colors
+colors = df_symmetric.index.map(lambda x: group_colors.get(x, 'grey'))  # Default color is grey
+
+# Increase figure size and adjust plot layout
+plt.figure(figsize=(12, 8))
+
+# Plotting the results with the colors specified by the 'colors' array
+plt.scatter(mds_results[:, 0], mds_results[:, 1], c=colors, s=100)  # Increase 's' to adjust dot size
+
+for label, x, y in zip(df_symmetric.index, mds_results[:, 0], mds_results[:, 1]):
+    # Custom offsets for specific labels
+    if label == 'VKS02BS02':
+        xytext = (15, -25)  # Move the label to the left and down
+    elif label in ['POU06NBS01', 'VUT02AP02', 'PES02AP01','POU06NCP01/02']:
+        xytext = (0, -25)  # Offset to move label below the dot
+    else:
+        xytext = (0, 5)  # Default offset for all other labels
+
+    plt.annotate(
+        label,
+        xy=(x, y),
+        xytext=xytext,
+        textcoords='offset points',
+        ha='right' if label == 'strain' else 'center',  # Right align text for strain 
+        va='center' if label in [] else 'bottom',
+        fontsize=18,
+        clip_on=False
+    )
+
+# Set labels for axes and adjust their font size
+plt.xlabel('x', fontsize=24)
+plt.ylabel('y', fontsize=24)
+
+# Adjust tick parameters
+plt.tick_params(axis='both', which='major', labelsize=18)
+
+# Adjust layout
+plt.tight_layout()
+
+# Save the figure with extra space for the labels
+plt.savefig('mds_plot.png', bbox_inches='tight')
+
+# Show the plot
+plt.show()
