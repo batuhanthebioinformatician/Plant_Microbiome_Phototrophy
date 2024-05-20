@@ -1,0 +1,200 @@
+import pandas as pd
+import numpy as np
+from scipy.spatial.distance import pdist, squareform
+from scipy.stats import pearsonr
+from skbio.stats.distance import DistanceMatrix
+from skbio.stats.distance import permanova
+
+
+def mantel_test(matrix1, matrix2, permutations=999):
+    """
+    Perform a Mantel test to compare two distance matrices.
+
+    Parameters:
+    - matrix1: First distance matrix (squareform distance matrix).
+    - matrix2: Second distance matrix (squareform distance matrix).
+    - permutations: Number of permutations for significance testing. Default is 999.
+
+    Returns:
+    - r_actual: Mantel correlation coefficient.
+    - p_value: Significance of the correlation.
+
+    Note: The parameter 'permutations=999' means that the test will shuffle the matrix 999 times
+    and calculate the Mantel statistic for each permutation. This helps in assessing the statistical
+    significance of the observed correlation by comparing it to the distribution of permuted correlations.
+    """
+    # Flatten the upper triangular part of the matrices
+    m1 = matrix1[np.triu_indices_from(matrix1, k=1)]
+    m2 = matrix2[np.triu_indices_from(matrix2, k=1)]
+
+    # Calculate the actual Mantel statistic
+    r_actual, _ = pearsonr(m1, m2)
+
+    # Permutations
+    greater_count = 0
+    for _ in range(permutations):
+        np.random.shuffle(m2)
+        r_permuted, _ = pearsonr(m1, m2)
+        if r_permuted >= r_actual:
+            greater_count += 1
+
+    # Calculate p-value
+    p_value = (greater_count + 1) / (permutations + 1)
+    return r_actual, p_value
+
+
+def perform_permanova(distance_matrix, grouping_vector, permutations=999):
+    """
+    Perform PERMANOVA (Permutational Multivariate Analysis of Variance) to test the significance of group differences.
+
+    Parameters:
+    - distance_matrix: DistanceMatrix object containing pairwise distances.
+    - grouping_vector: Vector indicating the group membership for each sample.
+    - permutations: Number of permutations for significance testing. Default is 999.
+
+    Returns:
+    - results: PERMANOVA results including the pseudo-F statistic and p-value.
+
+    Note: The parameter 'permutations=999' means that the test will shuffle the grouping labels 999 times
+    and calculate the pseudo-F statistic for each permutation. This helps in assessing the statistical
+    significance of the observed group differences by comparing them to the distribution of permuted group differences.
+    """
+    dm = DistanceMatrix(distance_matrix, ids=grouping_vector.index)
+    results = permanova(dm, grouping_vector, permutations=permutations)
+    return results
+
+
+def analyze_group(df, group, distance_matrix, trait_column):
+    """
+    Perform Mantel test for a specific phototrophic group.
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - group: The specific phototrophic group to analyze.
+    - distance_matrix: The phylogenetic distance matrix.
+    - trait_column: The column name representing the phototrophy trait.
+    """
+    group_df = df[df[trait_column] == group]
+    if group_df.shape[0] > 1:
+        indices = [df.index.get_loc(idx) for idx in group_df.index]
+        dm_group = distance_matrix[np.ix_(indices, indices)]
+        niche_dissimilarity_matrix_group = squareform(
+            pdist(group_df['Niche'].apply(lambda x: {'epiphytic': 0, 'endophytic': 1}[x]).values[:, np.newaxis],
+                  metric='hamming'))
+        mantel_stat, mantel_pval = mantel_test(dm_group, niche_dissimilarity_matrix_group)
+        print(f"Group {group} - Niche Mantel statistic: {mantel_stat}, P-value: {mantel_pval}")
+
+
+def analyze_permanova_group(df, group, distance_matrix, trait_column):
+    """
+    Perform PERMANOVA for a specific phototrophic group.
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - group: The specific phototrophic group to analyze.
+    - distance_matrix: The phylogenetic distance matrix.
+    - trait_column: The column name representing the phototrophy trait.
+    """
+    group_df = df[df[trait_column] == group]
+    if group_df.shape[0] > 1:
+        indices = [df.index.get_loc(idx) for idx in group_df.index]
+        dm_group = distance_matrix[np.ix_(indices, indices)]
+        dm_group = DistanceMatrix(dm_group, ids=group_df.index)
+        results = perform_permanova(dm_group, group_df['Niche'], permutations=999)
+        print(f"PERMANOVA results for group {group}:\n{results}\n")
+
+
+def analyze_niche_group(df, niche, distance_matrix, trait_column):
+    """
+    Perform Mantel test for a specific niche group.
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - niche: The specific niche group to analyze.
+    - distance_matrix: The phylogenetic distance matrix.
+    - trait_column: The column name representing the niche trait.
+    """
+    group_df = df[df[trait_column] == niche]
+    if group_df.shape[0] > 1:
+        indices = [df.index.get_loc(idx) for idx in group_df.index]
+        dm_group = distance_matrix[np.ix_(indices, indices)]
+        phototrophy_dissimilarity_matrix_group = squareform(pdist(
+            group_df['Phototrophy'].apply(lambda x: {'None': 0, 'XR': 1, 'AAP': 2, 'Ngroup': 3}[x]).values[:,
+            np.newaxis], metric='hamming'))
+        mantel_stat, mantel_pval = mantel_test(dm_group, phototrophy_dissimilarity_matrix_group)
+        print(f"Niche {niche} - Phototrophy Mantel statistic: {mantel_stat}, P-value: {mantel_pval}")
+
+
+def analyze_permanova_niche_group(df, niche, distance_matrix, trait_column):
+    """
+    Perform PERMANOVA for a specific niche group.
+
+    Parameters:
+    - df: DataFrame containing the data.
+    - niche: The specific niche group to analyze.
+    - distance_matrix: The phylogenetic distance matrix.
+    - trait_column: The column name representing the niche trait.
+    """
+    group_df = df[df[trait_column] == niche]
+    if group_df.shape[0] > 1:
+        indices = [df.index.get_loc(idx) for idx in group_df.index]
+        dm_group = distance_matrix[np.ix_(indices, indices)]
+        dm_group = DistanceMatrix(dm_group, ids=group_df.index)
+        results = perform_permanova(dm_group, group_df['Phototrophy'], permutations=999)
+        print(f"PERMANOVA results for niche {niche}:\n{results}\n")
+
+
+# Load the Excel file
+file_path = "Insert Your xlsx File Here"
+df = pd.read_excel(file_path, sheet_name=0, index_col=0)
+
+# Extract the phylogenetic dissimilarity matrix (excluding metadata columns)
+genome_dissimilarity_df = df.iloc[:, 2:].astype(float)
+distance_matrix = genome_dissimilarity_df.values
+
+# Ensure the matrix is symmetric by averaging with its transpose
+distance_matrix = (distance_matrix + distance_matrix.T) / 2
+
+# Convert categorical data to numerical labels
+phototrophy_labels = df['Phototrophy'].astype('category').cat.codes.to_numpy()
+niche_labels = df['Niche'].astype('category').cat.codes.to_numpy()
+
+# Calculate dissimilarity matrices for phototrophy and niche
+phototrophy_dissimilarity_matrix = squareform(pdist(phototrophy_labels[:, np.newaxis], metric='hamming'))
+niche_dissimilarity_matrix = squareform(pdist(niche_labels[:, np.newaxis], metric='hamming'))
+
+# Perform Mantel test for phototrophy on entire dataset
+mantel_stat_phototrophy, p_value_phototrophy = mantel_test(distance_matrix, phototrophy_dissimilarity_matrix,
+                                                           permutations=999)
+print(f'Phototrophy - Mantel statistic: {mantel_stat_phototrophy}, P-value: {p_value_phototrophy}')
+
+# Perform Mantel test for niche on entire dataset
+mantel_stat_niche, p_value_niche = mantel_test(distance_matrix, niche_dissimilarity_matrix, permutations=999)
+print(f'Niche - Mantel statistic: {mantel_stat_niche}, P-value: {p_value_niche}')
+
+# Perform PERMANOVA for phototrophy on entire dataset
+dm_phylo = DistanceMatrix(distance_matrix, ids=df.index)
+permanova_results_phototrophy = perform_permanova(dm_phylo, df['Phototrophy'], permutations=999)
+print('PERMANOVA results for Phototrophy:')
+print(permanova_results_phototrophy)
+
+# Perform PERMANOVA for niche on entire dataset
+permanova_results_niche = perform_permanova(dm_phylo, df['Niche'], permutations=999)
+print('PERMANOVA results for Niche:')
+print(permanova_results_niche)
+
+# Perform Mantel test for each phototrophic group
+for group in df['Phototrophy'].unique():
+    analyze_group(df, group, distance_matrix, 'Phototrophy')
+
+# Perform PERMANOVA for each phototrophic group
+for group in df['Phototrophy'].unique():
+    analyze_permanova_group(df, group, distance_matrix, 'Phototrophy')
+
+# Perform Mantel test for each niche group
+for niche in df['Niche'].unique():
+    analyze_niche_group(df, niche, distance_matrix, 'Niche')
+
+# Perform PERMANOVA for each niche group
+for niche in df['Niche'].unique():
+    analyze_permanova_niche_group(df, niche, distance_matrix, 'Niche')
