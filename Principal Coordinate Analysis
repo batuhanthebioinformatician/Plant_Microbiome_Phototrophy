@@ -1,0 +1,56 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from skbio.stats.distance import DistanceMatrix
+from skbio.stats.ordination import pcoa
+
+# Load the provided data into a DataFrame
+data = {
+    'Phototrophy': [],
+    'Niche': [],
+    "Insert Your df Matrix Here"
+}
+
+strains = []
+
+# Create the DataFrame
+df = pd.DataFrame(data, index=strains)
+
+# Extract metadata and distance matrix
+metadata = df[['Phototrophy', 'Niche']]
+distance_matrix_data = df.drop(columns=['Phototrophy', 'Niche'])
+
+# Ensure all data is numeric and handle NaNs
+distance_matrix_data = distance_matrix_data.apply(pd.to_numeric, errors='coerce')
+if distance_matrix_data.isna().any().any():
+    distance_matrix_data = distance_matrix_data.fillna(distance_matrix_data.mean())
+
+# Ensure the distance matrix is symmetric
+distance_matrix_data = (distance_matrix_data + distance_matrix_data.T) / 2
+
+# Convert to DistanceMatrix ensuring C-contiguous memory layout
+distance_matrix_data = np.ascontiguousarray(distance_matrix_data.values)
+distance_matrix = DistanceMatrix(distance_matrix_data)
+
+# Perform PCoA
+pcoa_results = pcoa(distance_matrix)
+
+# Create a DataFrame for the PCoA results
+pcoa_df = pcoa_results.samples
+pcoa_df['Phototrophy'] = metadata['Phototrophy'].values
+pcoa_df['Niche'] = metadata['Niche'].values
+
+# Define a custom color palette
+custom_palette = {
+    
+}
+
+# Plot PCoA results with smaller figure size and smaller points
+plt.figure(figsize=(8, 6))
+sns.scatterplot(x=pcoa_df['PC1'], y=pcoa_df['PC2'], hue=pcoa_df['Phototrophy'], style=pcoa_df['Niche'], s=50, palette=custom_palette)
+plt.title('PCoA of Strains Based on Distance Matrix')
+plt.xlabel(f'PCoA1 ({pcoa_results.proportion_explained[0]:.2%} variance)')
+plt.ylabel(f'PCoA2 ({pcoa_results.proportion_explained[1]:.2%} variance)')
+plt.legend(title='Groups')
+plt.show()
